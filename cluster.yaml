@@ -1,9 +1,12 @@
 members:
   - raftAddress: "127.0.0.1:9090"
+    httpAddress: "http://127.0.0.1:8080"
     nodeID: "node-1"
 
   - raftAddress: "127.0.0.1:9091"
+    httpAddress: "http://127.0.0.1:8081"
     nodeID: "node-2"
 
   - raftAddress: "127.0.0.1:9092"
+    httpAddress: "http://127.0.0.1:8082"
     nodeID: "node-3"

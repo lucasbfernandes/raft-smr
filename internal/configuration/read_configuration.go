@@ -12,6 +12,7 @@ type Configuration struct {
 
 type Member struct {
 	RaftAddress string `yaml:"raftAddress"`
+	HttpAddress string `yaml:"httpAddress"`
 	NodeID string `yaml:"nodeID"`
 }
 

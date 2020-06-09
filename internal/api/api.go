@@ -5,6 +5,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hashicorp/raft"
 	"net"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"raft-smr/internal/configuration"
 	"raft-smr/internal/controllers"
@@ -12,7 +14,7 @@ import (
 	"time"
 )
 
-func StartRaft(nodeID string, raftAddress string, raftDir string) (*raft.Raft, error) {
+func StartRaft(nodeID string, raftAddress string, raftDir string, clusterConfig *configuration.Configuration) (*raft.Raft, error) {
 	config := raft.DefaultConfig()
 	config.LocalID = raft.ServerID(nodeID)
 
@@ -41,7 +43,6 @@ func StartRaft(nodeID string, raftAddress string, raftDir string) (*raft.Raft, e
 		return nil, err
 	}
 
-	clusterConfig := configuration.GetConfiguration()
 	var servers []raft.Server
 	for _, member := range clusterConfig.Members {
 		servers = append(servers, raft.Server{
@@ -55,16 +56,49 @@ func StartRaft(nodeID string, raftAddress string, raftDir string) (*raft.Raft, e
 	return raftInstance, nil
 }
 
-func StartAPI(port string, raftInstance *raft.Raft) {
+func StartAPI(port string, raftInstance *raft.Raft, clusterConfig *configuration.Configuration) {
 	router := gin.Default()
 
 	router.POST("/set", func(context *gin.Context) {
+		if raftInstance.State() != raft.Leader {
+			err := forwardToLeader(raftInstance, context, clusterConfig)
+			if err != nil {
+				fmt.Println(err)
+			}
+			return
+		}
 		controllers.SetValue(context, raftInstance)
 	})
 
 	router.GET("/get", func(context *gin.Context) {
+		if raftInstance.State() != raft.Leader {
+			err := forwardToLeader(raftInstance, context, clusterConfig)
+			if err != nil {
+				fmt.Println(err)
+			}
+			return
+		}
 		controllers.GetValue(context, raftInstance)
 	})
 
 	router.Run(":" + port)
+}
+
+func forwardToLeader(raftInstance *raft.Raft, context *gin.Context, clusterConfig *configuration.Configuration) error  {
+	var address string
+	for _, member := range clusterConfig.Members {
+		if raft.ServerAddress(member.RaftAddress) == raftInstance.Leader() {
+			address = member.HttpAddress
+		}
+	}
+
+	leaderURL, err := url.Parse(address)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Forwarding request to leader on address %s", leaderURL)
+	proxy := httputil.NewSingleHostReverseProxy(leaderURL)
+	proxy.ServeHTTP(context.Writer, context.Request)
+	return nil
 }

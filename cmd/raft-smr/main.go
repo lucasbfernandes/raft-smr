@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"raft-smr/internal/api"
+	"raft-smr/internal/configuration"
 )
 
 var (
@@ -17,10 +18,12 @@ func init() {
 }
 
 func main() {
-	raftInstance, err := api.StartRaft(*nodeID, *raftAddress, *raftDir)
+	clusterConfig := configuration.GetConfiguration()
+
+	raftInstance, err := api.StartRaft(*nodeID, *raftAddress, *raftDir, clusterConfig)
 	if err != nil {
 		panic("failed to init raft")
 	}
 
-	api.StartAPI(*port, raftInstance)
+	api.StartAPI(*port, raftInstance, clusterConfig)
 }
