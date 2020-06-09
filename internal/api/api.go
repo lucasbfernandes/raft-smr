@@ -12,31 +12,33 @@ import (
 	"time"
 )
 
-func StartRaft(nodeID string, raftAddress string, raftDir string) error {
+func StartRaft(nodeID string, raftAddress string, raftDir string) (*raft.Raft, error) {
 	config := raft.DefaultConfig()
 	config.LocalID = raft.ServerID(nodeID)
 
 	address, err := net.ResolveTCPAddr("tcp", raftAddress)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	transport, err := raft.NewTCPTransport(raftAddress, address, 3, 10 * time.Second, os.Stderr)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	snapshots, err := raft.NewFileSnapshotStore(raftDir, 2, os.Stderr)
 	if err != nil {
-		return fmt.Errorf("file snapshot store: %s", err)
+		fmt.Errorf("file snapshot store: %s", err)
+		return nil, err
 	}
 
 	logStore := raft.NewInmemStore()
 	stableStore := raft.NewInmemStore()
 
-	ra, err := raft.NewRaft(config, fsm.CreateFSM(), logStore, stableStore, snapshots, transport)
+	raftInstance, err := raft.NewRaft(config, fsm.CreateFSM(), logStore, stableStore, snapshots, transport)
 	if err != nil {
-		return fmt.Errorf("new raft: %s", err)
+		fmt.Errorf("new raft: %s", err)
+		return nil, err
 	}
 
 	clusterConfig := configuration.GetConfiguration()
@@ -48,14 +50,21 @@ func StartRaft(nodeID string, raftAddress string, raftDir string) error {
 		})
 	}
 	raftConfig := raft.Configuration{ Servers: servers }
-	ra.BootstrapCluster(raftConfig)
+	raftInstance.BootstrapCluster(raftConfig)
 
-	return nil
+	return raftInstance, nil
 }
 
-func StartAPI(port string) {
+func StartAPI(port string, raftInstance *raft.Raft) {
 	router := gin.Default()
-	router.GET("/set", controllers.SetValue)
-	router.GET("/get", controllers.GetValue)
+
+	router.POST("/set", func(context *gin.Context) {
+		controllers.SetValue(context, raftInstance)
+	})
+
+	router.GET("/get", func(context *gin.Context) {
+		controllers.GetValue(context, raftInstance)
+	})
+
 	router.Run(":" + port)
 }

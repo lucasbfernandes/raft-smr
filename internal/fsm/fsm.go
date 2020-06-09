@@ -13,7 +13,7 @@ type FSM struct {
 	mapData map[string]string
 }
 
-type command struct {
+type Command struct {
 	Op    string `json:"op,omitempty"`
 	Key   string `json:"key,omitempty"`
 	Value string `json:"value,omitempty"`
@@ -31,7 +31,7 @@ func CreateFSM() *FSM {
 }
 
 func (fsm *FSM) Apply(l *raft.Log) interface{} {
-	var c command
+	var c Command
 	if err := json.Unmarshal(l.Data, &c); err != nil {
 		panic(fmt.Sprintf("failed to unmarshal command: %s", err.Error()))
 	}

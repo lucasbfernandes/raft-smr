@@ -17,6 +17,10 @@ func init() {
 }
 
 func main() {
-	api.StartRaft(*nodeID, *raftAddress, *raftDir)
-	api.StartAPI(*port)
+	raftInstance, err := api.StartRaft(*nodeID, *raftAddress, *raftDir)
+	if err != nil {
+		panic("failed to init raft")
+	}
+
+	api.StartAPI(*port, raftInstance)
 }
