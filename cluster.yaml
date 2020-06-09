@@ -1,0 +1,9 @@
+members:
+  - raftAddress: "127.0.0.1:9090"
+    nodeID: "node-1"
+
+  - raftAddress: "127.0.0.1:9091"
+    nodeID: "node-2"
+
+  - raftAddress: "127.0.0.1:9092"
+    nodeID: "node-3"
